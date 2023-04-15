@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<title>Web Chat</title>
+	<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.29.1/moment.min.js"></script>
+	<script>
+		$(function() {
+			var ws = new WebSocket("ws://" + window.location.host + "/ws");
+			var username = null;
+
+			$("#login-form").submit(function(event) {
+				event.preventDefault();
+				var data = JSON.stringify({
+					"username": $("#username").val(),
+					"password": $("#password").val()
+				});
+				$.ajax({
+					type: "POST",
+					url: "/login",
+					data: data,
+					contentType: "application/json; charset=utf-8",
+					dataType: "json",
+					success: function(response) {
+						username = $("#username").val();
+						$("#login-container").hide();
+						$("#chat-container").show();
+					},
+					error: function(xhr, status, error) {
+						alert("Login failed: " + error);
+					}
+				});
+			});
+
+			$("#message-form").submit(function(event) {
+				event.preventDefault();
+				var text = $("#message").val();
+				var msg = JSON.stringify({
+					"username": username,
+					"text": text,
+					"time": moment().format("YYYY-MM-DDTHH:mm:ssZ")
+				});
+				ws.send(msg);
+				$("#message").val("");
+			});
+
+			ws.onmessage = function(event) {
+				var msg = JSON.parse(event.data);
+				var time = moment(msg.time).format("HH:mm:ss");
+				var html = "<p><strong>" + msg.username + "</strong> [" + time + "]: " + msg.text + "</p>";
+				$("#messages").append(html);
+			};
+		});
+	</script>
+	<style>
+		#chat-container { display: none; }
+	</style>
+</head>
+<body>
+	<div id="login-container">
+		<form id="login-form">
+			<label for="username">Username:</label>
+			<input type="text" id="username" name="username" required><br>
+			<label for="password">Password:</label>
+			<input type="password" id="password" name="password" required><br>
+			<input type="submit" value="Log in">
+		</form>
+	</div>
+	<div id="chat-container">
+		<div id="messages"></div>
+		<form id="message-form">
+			<input type="text" id="message" name="message" required>
+			<input type="submit" value="Send">
+		</form>
+	</div>
+</body>
+</html>
